@@ -1,0 +1,6 @@
+---
+
+- name: Remove vagrant
+  user:
+    name: vagrant
+    state: absent

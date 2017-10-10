@@ -1,2 +1,6 @@
-/vendor/
+.bundle/
+vendor/
 *.swp
+*.ova
+output-*/
+*.retry

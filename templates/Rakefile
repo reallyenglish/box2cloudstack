@@ -1,0 +1,66 @@
+require "yaml"
+require "English"
+require "fileutils"
+
+def exec_and_abort_if_fail(cmd)
+  status = system cmd
+  $stderr.puts "`#{cmd}` failed." unless $CHILD_STATUS.exitstatus.zero?
+  abort unless $CHILD_STATUS.exitstatus.zero?
+  status
+end
+
+def vagrant(args)
+  puts "Running vagrant #{args}"
+  Bundler.with_clean_env do
+    exec_and_abort_if_fail "vagrant #{args}"
+  end
+end
+
+desc "install required roles"
+task :setup do |_t|
+  sh "ansible-galaxy install -r requirements.yml"
+end
+
+inventory_file = "inventories/default.yml"
+inventory = YAML.load_file(inventory_file)
+
+inventory["all"]["hosts"].each_key do |name|
+  namespace name do
+    desc "vagrant up #{name}"
+    task :up do |_t|
+      vagrant "up #{name}"
+    end
+
+    desc "vagrant provision #{name}"
+    task :provision do |_t|
+      vagrant "provision #{name}"
+    end
+
+    desc "vagrant halt #{name}"
+    task :halt do |_t|
+      vagrant "halt #{name}"
+    end
+
+    desc "vagrant package #{name}"
+    task :package do |_t|
+      vagrant "package --output #{name}.ova #{name}"
+    end
+
+    desc "vagrant destroy #{name}"
+    task :destroy do |_t|
+      vagrant "destroy -f #{name}"
+    end
+
+    desc "build #{name}"
+    task build: [:up, :halt, :package]
+  end
+end
+
+desc "clean everything"
+task :clean do |_t|
+  begin
+    vagrant "destroy -f"
+  ensure
+    FileUtils.rm_rf ["*.ova", "roles.galaxy/*", "*.retry"], :secure => true
+  end
+end

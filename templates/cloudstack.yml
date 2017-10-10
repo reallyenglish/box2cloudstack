@@ -1,0 +1,12 @@
+- hosts: all
+  become: yes
+  become_method: sudo
+  remote_user: vagrant
+  environment:
+    http_proxy: "{{ http_proxy | default() }}"
+    https_proxy: "{{ https_proxy | default() }}"
+    no_proxy: "{{ no_proxy | default() }}"
+  roles:
+    - role: reallyenglish.cloudstack-init
+    - role: remove_vagrant
+  tasks:

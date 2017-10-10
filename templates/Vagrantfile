@@ -1,0 +1,31 @@
+require "yaml"
+
+Vagrant.configure("2") do |config|
+  config.ssh.shell = "/bin/sh"
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 512
+    v.cpus = 1
+  end
+  ansible_extra_vars_default = {
+    ansible_ssh_user: "vagrant",
+    ansible_ssh_private_key_file: "~/.vagrant.d/insecure_private_key"
+  }
+  inventory_path = "inventories/default.yml"
+  box_username = "trombik"
+
+  boxes = YAML.load_file(inventory_path)["all"]["hosts"]
+  boxes.keys.sort.each do |name|
+    config.vm.define name do |c|
+      box = boxes[name]
+      c.vm.box = "#{box_username}/#{name}"
+      c.vm.network "private_network", ip: box["ansible_ssh_host"]
+      c.vm.provision :ansible do |ansible|
+        ansible.verbose = "v"
+        ansible.playbook = "site.yml"
+        ansible.inventory_path = "inventories/default.yml"
+        ansible.extra_vars = ansible_extra_vars_default.merge(box["ansible_extra_vars"] || {})
+      end
+    end
+  end
+end
+# vim: ft=ruby
