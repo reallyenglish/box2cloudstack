@@ -4,3 +4,4 @@ vendor/
 *.ova
 output-*/
 *.retry
+.vagrant/
