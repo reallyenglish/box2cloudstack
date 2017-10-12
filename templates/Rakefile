@@ -43,7 +43,7 @@ inventory["all"]["hosts"].each_key do |name|
 
     desc "vagrant package #{name}"
     task :package do |_t|
-      vagrant "package --output #{name}.ova #{name}"
+      vagrant "package --output #{name}.box #{name}"
     end
 
     desc "vagrant destroy #{name}"
@@ -53,6 +53,27 @@ inventory["all"]["hosts"].each_key do |name|
 
     desc "build #{name}"
     task build: [:up, :halt, :package]
+
+    desc "create OVA"
+    task :ova do |_t|
+      guestos_map = {
+        "freebsd" => "freebsd-64",
+        "openbsd" => "other-64",
+      }
+      os = name.split("-")[1]
+      raise "cannot determine os name from `#{name}`" if os.nil? || os.empty?
+      raise "os `#{os}` is not defined in the Rakefile" unless guestos_map.key?(os)
+      guestos = guestos_map[os]
+      sh "tar -C ova -zxf #{name}.box"
+      File.open("ova/#{name}.vmx", "w") do |w|
+        File.open("ova/example.vmx", "r") do |r|
+          r.each_line do |l|
+            w.puts l.gsub("%%%BOXNAME%%%", name).gsub("%%%GUESTOS%%%", guestos)
+          end
+        end
+      end
+      sh "(cd ova && ovftool #{name}.vmx #{name}.ova)"
+    end
   end
 end
 

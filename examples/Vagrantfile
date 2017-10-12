@@ -1,0 +1,72 @@
+%w(CS_KEY_PAIR CS_SECRET_KEY CS_API_KEY).each do |k|
+  next if ENV[k]
+  puts "environment valiable \"#{k}\" is not defined"
+  puts "CS_API_KEY: API key"
+  puts "CS_SECRET_KEY: secret key"
+  puts "CS_KEY_PAIR: name of SSH key pair, which must be registered"
+  exit 1
+end
+
+Vagrant.configure(2) do |config|
+
+  # this is a dummy box, not used
+  config.vm.box = "dummy"
+  config.vm.box_url = "https://github.com/klarna/vagrant-cloudstack/raw/master/dummy.box"
+  config.ssh.shell = "/bin/sh"
+
+  # no files to sync
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  # https://www.vagrantup.com/docs/vagrantfile/ssh_settings.html
+  config.ssh.proxy_command = "ssh 113.33.226.118 /usr/bin/nc %h 22"
+  config.ssh.username = "root"
+  config.ssh.keys_only = true
+  #
+  # the key must be registerd in the cloudstack console
+  config.ssh.private_key_path = "~/.ssh/#{ENV["CS_KEY_PAIR"]}"
+
+  # see the provider documentation
+  # https://github.com/MissionCriticalCloud/vagrant-cloudstack
+  config.vm.provider :cloudstack do |cloudstack, _override|
+
+    # API endpoint
+    cloudstack.scheme = "https"
+    cloudstack.host = "compute.jp-east.idcfcloud.com"
+    cloudstack.port = "443"
+    cloudstack.path = "/client/api"
+
+    # keys
+    cloudstack.api_key = ENV["CS_API_KEY"]
+    cloudstack.secret_key = ENV["CS_SECRET_KEY"]
+    cloudstack.keypair = ENV["CS_KEY_PAIR"]
+
+    # any cloudstack CLI tool can be used to interact the API endpoint
+    # https://github.com/idcf/cloudstack-api (IDCF, written in python)
+    # https://github.com/niwo/cloudstack-cli (written in ruby)
+    #
+    # API documentations
+    # http://docs.idcf.jp/cloud/api/ (IDCF)
+    # https://cloudstack.apache.org/api/apidocs-4.9/apis/listNetworks.html
+    # (official document)
+    #
+    # cloudstack-api listServiceOfferings
+    cloudstack.service_offering_name = "light.S2"
+
+    # cloudstack-api listNetworks
+    cloudstack.network_name = "71000001146:10.102.36.0/23"
+
+    # cloudstack-api listZones
+    cloudstack.zone_name = "tesla"
+
+    # the template name
+    cloudstack.template_name = "ansible-openbsd-6.0-amd64"
+  end
+  config.vm.define "box2cloudstack-test" do |c|
+    c.vm.provider :cloudstack do |cloudstack, _override|
+
+      # you may override per-machine configuration here
+      cloudstack.service_offering_name = "light.S1"
+    end
+  end
+end
+# vim: ft=ruby

@@ -24,9 +24,13 @@ inventory["all"]["hosts"].each_key do |name|
     output_dir = "output-#{name}"
     desc "initialize build directory"
     task :setup do |_t|
-      puts "Creating #{output_dir}"
-      Dir.mkdir(output_dir)
-      puts "Copying template to #{output_dir}"
+      puts "Creating `#{output_dir}`"
+      if Dir.exist?(output_dir)
+        puts "`#{output_dir}` already exists, skipping"
+      else
+        Dir.mkdir(output_dir)
+      end
+      puts "Copying template to `#{output_dir}`"
       FileUtils.cp_r("#{template_dir}/.", output_dir)
       rake path: output_dir, args: "setup"
     end
@@ -34,19 +38,24 @@ inventory["all"]["hosts"].each_key do |name|
     desc "do_build #{name}"
     task :do_build do |_t|
       rake path: output_dir, args: "#{name}:build"
-      puts "Copying #{output_dir}/#{name}.ova to #{name}.ova"
-      FileUtils.cp "#{output_dir}/#{name}.ova", "#{name}.ova"
+    end
+
+    desc "Create OVA file"
+    task :ova do |_t|
+      rake path: output_dir, args: "#{name}:ova"
+      puts "Copying `#{output_dir}/ova/#{name}.ova` to `#{name}.ova`"
+      FileUtils.cp "#{output_dir}/ova/#{name}.ova", "#{name}.ova"
     end
 
     desc "clean #{output_dir}"
     task :clean do |_t|
       rake path: output_dir, args: "clean"
-      puts "Removing #{output_dir}"
+      puts "Removing `#{output_dir}`"
       FileUtils.rm_rf [output_dir], :secure => true
     end
 
-    desc "build #{name} and clean #{output_dir}"
-    task :build => [:setup, :do_build, :clean]
+    desc "build #{name} and clean `#{output_dir}`"
+    task :build => [:setup, :do_build, :ova, :clean]
   end
 end
 
@@ -62,9 +71,9 @@ task :clean do |_t|
       rake :path => dir, :args => "clean"
     end
   ensure
-    puts "Removing #{Dir.glob("output-*")}"
+    puts "Removing `#{Dir.glob("output-*")}`"
     FileUtils.rm_rf Dir.glob("output-*"), :secure => true
-    puts "Removing #{Dir.glob("*.ova")}"
+    puts "Removing `#{Dir.glob("*.ova")}`"
     FileUtils.rm_rf Dir.glob("*.ova"), :secure => true
   end
 end

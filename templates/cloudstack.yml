@@ -8,5 +8,17 @@
     no_proxy: "{{ no_proxy | default() }}"
   roles:
     - role: reallyenglish.cloudstack-init
-    - role: remove_vagrant
-  tasks:
+    - role: reallyenglish.sshd
+  vars:
+    sshd_config:
+      # allow root using register ssh key
+      # XXX user vagrant still exists but considered as safe enough because
+      # password authetication is disabled and the insecure public key has been
+      # removed.
+      #
+      # XXX if you remove `vagrant` user, the shutdown will be hard-reset that
+      # causes file system corruption.
+      PermitRootLogin: without-password
+      PasswordAuthentication: "no"
+      UseDNS: "no"
+      UsePAM: "no"
