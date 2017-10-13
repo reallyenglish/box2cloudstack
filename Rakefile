@@ -4,8 +4,15 @@ require "English"
 require "rake"
 require "fileutils"
 require "yaml"
+require "deep_merge"
 
 template_dir = "templates"
+
+inventory_file = "#{template_dir}/inventories/default.yml"
+inventory = YAML.load_file(inventory_file)
+raise "config.yml cannot be found" unless File.exist?("config.yml")
+config = YAML.load_file("config.yml")
+config.deep_merge!(YAML.load_file("config.yml.local")) if File.exist?("config.yml.local")
 
 def rake(path:, args:)
   puts "Running rake #{args}"
@@ -16,8 +23,9 @@ def rake(path:, args:)
   end
 end
 
-inventory_file = "#{template_dir}/inventories/default.yml"
-inventory = YAML.load_file(inventory_file)
+def all_targets_of(target, inventory)
+  inventory["all"]["hosts"].keys.sort.map {|i| "#{i}:#{target}" }
+end
 
 inventory["all"]["hosts"].each_key do |name|
   namespace name do
@@ -54,14 +62,116 @@ inventory["all"]["hosts"].each_key do |name|
       FileUtils.rm_rf [output_dir], :secure => true
     end
 
+    namespace "upload" do
+      desc "uplaod to AWS S3"
+      task :s3 do |_t|
+        require "aws-sdk-s3"
+        file = "#{name}.ova"
+        %w(
+          AWS_ACCESS_KEY_ID
+          AWS_SECRET_ACCESS_KEY
+        ).each do |i|
+          raise "environment variable `#{i}` must be set" unless ENV[i]
+        end
+        raise "config section for S3 cannot be found" unless config.key?("upload") && config["upload"].key?("s3")
+        raise "`#{file}` cannot be found" unless File.exist?(file)
+
+        s3_config = {
+          "key_prefix" => ""
+        }.merge(config["upload"]["s3"])
+        %w( bucket region ).each do |i|
+          raise "config for S3 does not have a required key: `#{i}`" unless s3_config.key?(i)
+        end
+
+        key = "#{s3_config["key_prefix"]}#{file}"
+        acl = s3_config["acl"]
+        bucket = s3_config["bucket"]
+        client = Aws::S3::Client.new(region: s3_config["region"])
+        puts "uploading to S3"
+        puts "bucket: #{bucket}"
+        puts "key: #{key}"
+        puts "acl: #{acl}"
+        r = client.put_object(
+          acl: acl,
+          body: File.read("#{name}.ova"),
+          bucket: bucket,
+          key: key
+        )
+        puts "upload #{file} completed."
+        puts format("URL: https://s3-%s.amazonaws.com/%s/%s%s",
+                    s3_config["region"], s3_config["bucket"],
+                    s3_config["key_prefix"], file)
+        puts "ETAG: #{r.etag}"
+      end
+    end
+
+    desc "create VM template"
+    task :template do |_t|
+      raise "config section for VM template cannot be found" unless config.key?("template")
+      raise "key `upload` is not defined" unless config["template"].key?("upload")
+      raise "upload `#{config["template"]["upload"]}` is not supported" unless config["template"]["upload"] == "s3"
+
+      raise "`ostypeid` is not defined in inventory file" unless inventory["all"]["hosts"][name].key?("ostypeid")
+      ostypeid = inventory["all"]["hosts"][name]["ostypeid"]
+
+      raise "`zoneid` is not defined under template key in config.yml" unless config["template"].key?("zoneid")
+      zoneid = config["template"]["zoneid"]
+
+      url = ""
+      command = ""
+      case config["template"]["upload"]
+      when "s3"
+        url = format("https://s3-%s.amazonaws.com/%s/%s%s.ova",
+                     config["upload"]["s3"]["region"], config["upload"]["s3"]["bucket"],
+                     config["upload"]["s3"]["key_prefix"], name)
+      else
+        raise format("unsupported uplaod method: %s", config["template"]["upload"])
+      end
+
+      case config["template"]["api_command"]
+      when "cloudstack-api"
+        command = format("cloudstack-api " +
+                  "registerTemplate " +
+                  "--format OVA " +
+                  "--hypervisor VMware " +
+                  "--sshkeyenabled true " +
+                  "--isextractable true " +
+                  "--passwordenabled true " +
+                  "--name '%s' " +
+                  "--displaytext '%s' " +
+                  "--ostypeid '%s' " +
+                  "--url '%s' " +
+                  "--zoneid '%s' ",
+                  name,
+                  "#{name + '-' + Time.now.strftime("%Y%m%d-%T")}",
+                  ostypeid,
+                  url,
+                  zoneid
+                  )
+      else
+        raise format("unsupported `api_command`: %s", config["template"]["api_command"])
+      end
+      puts "creating a template for #{name}"
+      sh command
+    end
+
     desc "build #{name} and clean `#{output_dir}`"
     task :build => [:setup, :do_build, :ova, :clean]
   end
 end
 
 desc "build all"
-all_targets = inventory["all"]["hosts"].keys.sort.map {|i| "#{i}:build" }
-task :build => all_targets do |_t|
+task :build => all_targets_of("build", inventory) do |_t|
+end
+
+namespace "upload" do
+  desc "upload all OVA files to S3"
+  task :s3 => all_targets_of("upload:s3", inventory) do |_t|
+  end
+end
+
+desc "create all templates"
+task :template => all_targets_of("template", inventory) do |_t|
 end
 
 desc "clean everything"

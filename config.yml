@@ -1,0 +1,13 @@
+---
+upload:
+  s3:
+    region: ap-northeast-1
+    bucket: CHANGEME
+    key_prefix: CHANGEME
+    # see http://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html
+    acl: public-read
+template:
+  upload: s3
+  # see cloudstack-api listZones
+  zoneid: XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXXXXXXX
+  api_command: cloudstack-api

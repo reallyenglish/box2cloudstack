@@ -1,3 +1,20 @@
+Table of Contents
+=================
+
+  * [Table of Contents](#table-of-contents)
+  * [box2cloudstack](#box2cloudstack)
+    * [Requirements](#requirements)
+    * [Usage](#usage)
+    * [config.yml](#configyml)
+      * [template top level key](#template-top-level-key)
+      * [upload top level key](#upload-top-level-key)
+        * [s3](#s3)
+    * [Targets](#targets)
+      * [build](#build)
+      * [upload:s3](#uploads3)
+      * [clean](#clean)
+    * [Creating a VM from templates](#creating-a-vm-from-templates)
+
 # `box2cloudstack`
 
 Creates `.ova` file for `cloudstack` from `vagrant` box.
@@ -10,11 +27,10 @@ Creates `.ova` file for `cloudstack` from `vagrant` box.
 * bundler
 * [ovftool](https://www.vmware.com/support/developer/ovf/) (registration required)
 
-Optionally, but highly recommended to install cloudstack API CLI
-tool. Some candidates:
+Either one of:
 
-* [cloudstack-cli](https://github.com/niwo/cloudstack-cli)
 * [cloudstack-api](https://github.com/idcf/cloudstack-api)
+* [cloudstack-cli](https://github.com/niwo/cloudstack-cli) (XXX not supported yet)
 
 ## Usage
 
@@ -54,6 +70,97 @@ To clean everything including `OVA` files, run:
 ```
 bundle exec rake clean
 ```
+
+After successful build, upload the OVA file. Currently AWS S3 is supported.
+
+```
+bundle exec rake ansible-freebsd-10.3-amd64:upload:s3
+```
+
+Lastly, create a template.
+
+```
+bundle exec rake ansible-freebsd-10.3-amd64:template
+```
+
+The following command will:
+
+* build everything
+* upload all OVA files
+* create all templates
+* clean everything
+
+```
+bundle exec rake build upload:s3 template clean
+```
+
+## `config.yml`
+
+`config.yml` is a configuration file for the build.
+
+If `config.yml.local` exists, the content of it overrides `config.yml`.
+
+### `template` top level key
+
+This key specifies configurations for registering templates.
+
+A list of currently supported API command is:
+
+* `cloudstack-api`
+
+| Key | Description | Mandatory? |
+|-----|-------------|------------|
+| `upload` | the name of upload method | yes |
+| `zoneid` | the zone ID where the template is registered in | yes |
+| `api_command` | command name to execute | yes |
+
+```yaml
+template:
+  upload: s3
+  zoneid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+  api_command: cloudstack-api
+```
+
+### `upload` top level key
+
+This key specifies configurations for each supported upload method.
+
+#### `s3`
+
+To upload OVA files to S3, you need:
+
+* to create a writable bucket
+* to permit the cloudstack system to access the bucket
+
+| Key | Description | Mandatory? |
+|-----|-------------|------------|
+| `region` | region name | yes |
+| `bucket` | name of bucket | yes |
+| `key_prefix` | prefix of key, i.e. when box name is `ansible-freebsd-10.3-amd64`, and the `key_prefix` is `foo/bar/`, the key of the object is `foo/bar/ansible-freebsd-10.3-amd64`. | no |
+| `acl` | ACL string for the object | one of ACL strings supported by S3. see [Access Control List (ACL) Overview](http://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html) | yes |
+
+```yaml
+upload:
+  s3:
+    region: ap-northeast-1
+    bucket: mybucket
+    key_prefix: ova/cloudstack/
+    acl: authenticated-read
+```
+
+## Targets
+
+### build
+
+This target builds all OVA files defined in `templates/inventories/default.yml`.
+
+### upload:s3
+
+This uploads all OVA files to AWS S3.
+
+### clean
+
+Clean everything, including OVA files.
 
 ## Creating a VM from templates
 

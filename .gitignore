@@ -5,3 +5,4 @@ vendor/
 output-*/
 *.retry
 .vagrant/
+config.yml.local

@@ -18,7 +18,6 @@ Vagrant.configure(2) do |config|
   config.vm.synced_folder ".", "/vagrant", disabled: true
 
   # https://www.vagrantup.com/docs/vagrantfile/ssh_settings.html
-  config.ssh.proxy_command = "ssh 113.33.226.118 /usr/bin/nc %h 22"
   config.ssh.username = "root"
   config.ssh.keys_only = true
   #
@@ -53,7 +52,7 @@ Vagrant.configure(2) do |config|
     cloudstack.service_offering_name = "light.S2"
 
     # cloudstack-api listNetworks
-    cloudstack.network_name = "71000001146:10.102.36.0/23"
+    cloudstack.network_name = "CHANGEME"
 
     # cloudstack-api listZones
     cloudstack.zone_name = "tesla"
