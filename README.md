@@ -179,3 +179,18 @@ export CS_KEY_PAIR=YOUR_SSH_KEY_NAME
 vi Vagrantfile
 vagrant up
 ```
+
+## Attaching additional disk
+
+`vagrant-cloudstack` does not implement `size` in `deployVirtualMachine` API,
+which is required to create and attach a custom volume.
+
+For `v1.4.0`, you need to patch the gem.
+[v1.4.0-size](https://github.com/trombik/vagrant-cloudstack/tree/v1.4.0-size)
+is the patch. Build and install the gem.
+
+Or, you may install [pre-built gem](files/vagrant-cloudstack-1.4.0.gem).
+
+```
+vagrant plugin install files/vagrant-cloudstack-1.4.0.gem
+```
