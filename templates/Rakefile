@@ -58,11 +58,13 @@ inventory["all"]["hosts"].each_key do |name|
     task :ova do |_t|
       guestos_map = {
         "freebsd" => "freebsd-64",
-        "openbsd" => "other-64",
+        "openbsd" => "other-64"
       }
       os = name.split("-")[1]
       raise "cannot determine os name from `#{name}`" if os.nil? || os.empty?
-      raise "os `#{os}` is not defined in the Rakefile" unless guestos_map.key?(os)
+      unless guestos_map.key?(os)
+        raise "os `#{os}` is not defined in the Rakefile"
+      end
       guestos = guestos_map[os]
       sh "tar -C ova -zxf #{name}.box"
       File.open("ova/#{name}.vmx", "w") do |w|
@@ -82,6 +84,6 @@ task :clean do |_t|
   begin
     vagrant "destroy -f"
   ensure
-    FileUtils.rm_rf ["*.ova", "roles.galaxy/*", "*.retry"], :secure => true
+    FileUtils.rm_rf ["*.ova", "roles.galaxy/*", "*.retry"], secure: true
   end
 end

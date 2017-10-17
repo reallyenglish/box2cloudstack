@@ -11,9 +11,14 @@ template_dir = "templates"
 
 inventory_file = "#{template_dir}/inventories/default.yml"
 inventory = YAML.load_file(inventory_file)
-raise "config.yml cannot be found" unless File.exist?("config.yml")
-config = YAML.load_file("config.yml")
-config.deep_merge!(YAML.load_file("config.yml.local")) if File.exist?("config.yml.local")
+config_yml = "config.yml"
+raise "#{config_yml} cannot be found" unless File.exist?(config_yml)
+config = YAML.load_file(config_yml)
+if File.exist?("#{config_yml}.local")
+  config.deep_merge!(
+    YAML.load_file("#{config_yml}.local")
+  )
+end
 
 def rake(path:, args:)
   puts "Running rake #{args}"
@@ -25,7 +30,7 @@ def rake(path:, args:)
 end
 
 def all_targets_of(target, inventory)
-  inventory["all"]["hosts"].keys.sort.map {|i| "#{i}:#{target}" }
+  inventory["all"]["hosts"].keys.sort.map { |i| "#{i}:#{target}" }
 end
 
 inventory["all"]["hosts"].each_key do |name|
@@ -60,7 +65,7 @@ inventory["all"]["hosts"].each_key do |name|
     task :clean do |_t|
       rake path: output_dir, args: "clean"
       puts "Removing `#{output_dir}`"
-      FileUtils.rm_rf [output_dir], :secure => true
+      FileUtils.rm_rf [output_dir], secure: true
     end
 
     namespace "upload" do
@@ -68,23 +73,27 @@ inventory["all"]["hosts"].each_key do |name|
       task :s3 do |_t|
         require "aws-sdk-s3"
         file = "#{name}.ova"
-        %w(
+        %w[
           AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY
-        ).each do |i|
+        ].each do |i|
           raise "environment variable `#{i}` must be set" unless ENV[i]
         end
-        raise "config section for S3 cannot be found" unless config.key?("upload") && config["upload"].key?("s3")
+        unless config.key?("upload") && config["upload"].key?("s3")
+          raise "config section for S3 cannot be found"
+        end
         raise "`#{file}` cannot be found" unless File.exist?(file)
 
         s3_config = {
           "key_prefix" => ""
         }.merge(config["upload"]["s3"])
-        %w( bucket region ).each do |i|
-          raise "config for S3 does not have a required key: `#{i}`" unless s3_config.key?(i)
+        %w[bucket region].each do |i|
+          unless s3_config.key?(i)
+            raise "config for S3 does not have a required key: `#{i}`"
+          end
         end
 
-        key = "#{s3_config["key_prefix"]}#{file}"
+        key = "#{s3_config['key_prefix']}#{file}"
         acl = s3_config["acl"]
         bucket = s3_config["bucket"]
         client = Aws::S3::Client.new(region: s3_config["region"])
@@ -108,32 +117,51 @@ inventory["all"]["hosts"].each_key do |name|
 
     desc "create VM template"
     task :template do |_t|
-      %w(
+      %w[
         CS_KEY_PAIR
         CS_API_KEY
         CS_SECRET_KEY
-      ).each do |i|
+      ].each do |i|
         raise "environment variable `#{i}` must be set" unless ENV[i]
       end
-      raise "config section for VM template cannot be found" unless config.key?("template")
-      raise "key `upload` is not defined" unless config["template"].key?("upload")
-      raise "upload `#{config["template"]["upload"]}` is not supported" unless config["template"]["upload"] == "s3"
+      unless config.key?("template")
+        raise "config section for VM template cannot be found"
+      end
+      unless config["template"].key?("upload")
+        raise "key `upload` is not defined"
+      end
+      unless config["template"]["upload"] == "s3"
+        raise "upload `#{config['template']['upload']}` is not supported"
+      end
 
-      raise "`ostypeid` is not defined in inventory file" unless inventory["all"]["hosts"][name].key?("ostypeid")
+      unless inventory["all"]["hosts"][name].key?("ostypeid")
+        raise "`ostypeid` is not defined in inventory file"
+      end
       ostypeid = inventory["all"]["hosts"][name]["ostypeid"]
 
-      raise "`zoneid` is not defined under template key in config.yml" unless config["template"].key?("zoneid")
+      unless config["template"].key?("zoneid")
+        raise format("`zoneid` is not defined under `template` in %s",
+                     config_yml)
+      end
       zoneid = config["template"]["zoneid"]
-      raise "`cloudstack_api_url` is not defined under key `template` in config.yml" unless config["template"].key?("cloudstack_api_url")
+      unless config["template"].key?("cloudstack_api_url")
+        raise format(
+          "`cloudstack_api_url` is not defined under `template` in %s",
+          config_yml
+        )
+      end
 
       url = ""
       case config["template"]["upload"]
       when "s3"
         url = format("https://s3-%s.amazonaws.com/%s/%s%s.ova",
-                     config["upload"]["s3"]["region"], config["upload"]["s3"]["bucket"],
-                     config["upload"]["s3"]["key_prefix"], name)
+                     config["upload"]["s3"]["region"],
+                     config["upload"]["s3"]["bucket"],
+                     config["upload"]["s3"]["key_prefix"],
+                     name)
       else
-        raise format("unsupported uplaod method: %s", config["template"]["upload"])
+        raise format("unsupported uplaod method: %s",
+                     config["template"]["upload"])
       end
 
       cs = CloudstackClient::Client.new(
@@ -149,7 +177,7 @@ inventory["all"]["hosts"].each_key do |name|
         isextractable: true,
         passwordenabled: true,
         name: name,
-        displaytext: "#{name + '-' + Time.now.strftime("%Y%m%d-%T")}",
+        displaytext: (name + "-" + Time.now.strftime("%Y%m%d-%T")).to_s,
         ostypeid: ostypeid,
         url: url,
         zoneid: zoneid
@@ -157,34 +185,34 @@ inventory["all"]["hosts"].each_key do |name|
     end
 
     desc "build #{name} and clean `#{output_dir}`"
-    task :build => [:setup, :do_build, :ova, :clean]
+    task build: [:setup, :do_build, :ova, :clean]
   end
 end
 
 desc "build all"
-task :build => all_targets_of("build", inventory) do |_t|
+task build: all_targets_of("build", inventory) do |_t|
 end
 
 namespace "upload" do
   desc "upload all OVA files to S3"
-  task :s3 => all_targets_of("upload:s3", inventory) do |_t|
+  task s3: all_targets_of("upload:s3", inventory) do |_t|
   end
 end
 
 desc "create all templates"
-task :template => all_targets_of("template", inventory) do |_t|
+task template: all_targets_of("template", inventory) do |_t|
 end
 
 desc "clean everything"
 task :clean do |_t|
   begin
     Dir.glob("output-*").each do |dir|
-      rake :path => dir, :args => "clean"
+      rake path: dir, args: "clean"
     end
   ensure
-    puts "Removing `#{Dir.glob("output-*")}`"
-    FileUtils.rm_rf Dir.glob("output-*"), :secure => true
-    puts "Removing `#{Dir.glob("*.ova")}`"
-    FileUtils.rm_rf Dir.glob("*.ova"), :secure => true
+    puts "Removing `#{Dir.glob('output-*')}`"
+    FileUtils.rm_rf Dir.glob("output-*"), secure: true
+    puts "Removing `#{Dir.glob('*.ova')}`"
+    FileUtils.rm_rf Dir.glob("*.ova"), secure: true
   end
 end

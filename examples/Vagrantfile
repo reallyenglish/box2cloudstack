@@ -1,4 +1,4 @@
-%w(CS_KEY_PAIR CS_SECRET_KEY CS_API_KEY).each do |k|
+%w[CS_KEY_PAIR CS_SECRET_KEY CS_API_KEY].each do |k|
   next if ENV[k]
   puts "environment valiable \"#{k}\" is not defined"
   puts "CS_API_KEY: API key"
@@ -8,7 +8,6 @@
 end
 
 Vagrant.configure(2) do |config|
-
   # this is a dummy box, not used
   config.vm.box = "dummy"
   config.vm.box_url = "https://github.com/klarna/vagrant-cloudstack/raw/master/dummy.box"
@@ -22,12 +21,11 @@ Vagrant.configure(2) do |config|
   config.ssh.keys_only = true
   #
   # the key must be registerd in the cloudstack console
-  config.ssh.private_key_path = "~/.ssh/#{ENV["CS_KEY_PAIR"]}"
+  config.ssh.private_key_path = "~/.ssh/#{ENV['CS_KEY_PAIR']}"
 
   # see the provider documentation
   # https://github.com/MissionCriticalCloud/vagrant-cloudstack
   config.vm.provider :cloudstack do |cloudstack, _override|
-
     # API endpoint
     cloudstack.scheme = "https"
     cloudstack.host = "compute.jp-east.idcfcloud.com"
@@ -62,7 +60,6 @@ Vagrant.configure(2) do |config|
   end
   config.vm.define "box2cloudstack-test" do |c|
     c.vm.provider :cloudstack do |cloudstack, _override|
-
       # you may override per-machine configuration here
       #
       # destroy disks on `destroy`
