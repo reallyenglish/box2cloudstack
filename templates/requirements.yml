@@ -1,6 +1,6 @@
 ---
 
 - name: reallyenglish.cloudstack-init
-  src: https://github.com/reallyenglish/ansible-role-cloudstack-init/archive/support_password.tar.gz
+  src: https://github.com/reallyenglish/ansible-role-cloudstack-init/archive/master.tar.gz
 - name: reallyenglish.sshd
 

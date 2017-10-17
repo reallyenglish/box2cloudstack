@@ -27,10 +27,13 @@ Creates `.ova` file for `cloudstack` from `vagrant` box.
 * bundler
 * [ovftool](https://www.vmware.com/support/developer/ovf/) (registration required)
 
-Either one of:
+Optionally, install `cloudstack` command line API client. Here is a list of
+popular clients.
 
+* [cloudstack_client](https://github.com/niwo/cloudstack_client) (written in
+  ruby, `bundle install` will install this gem)
 * [cloudstack-api](https://github.com/idcf/cloudstack-api)
-* [cloudstack-cli](https://github.com/niwo/cloudstack-cli) (XXX not supported yet)
+* [cloudstack-cli](https://github.com/niwo/cloudstack-cli)
 
 ## Usage
 
@@ -112,13 +115,11 @@ A list of currently supported API command is:
 |-----|-------------|------------|
 | `upload` | the name of upload method | yes |
 | `zoneid` | the zone ID where the template is registered in | yes |
-| `api_command` | command name to execute | yes |
 
 ```yaml
 template:
   upload: s3
   zoneid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-  api_command: cloudstack-api
 ```
 
 ### `upload` top level key

@@ -8,6 +8,6 @@ upload:
     acl: public-read
 template:
   upload: s3
+  cloudstack_api_url: CHANGEME
   # see cloudstack-api listZones
   zoneid: XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXXXXXXX
-  api_command: cloudstack-api

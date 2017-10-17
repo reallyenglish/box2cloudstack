@@ -5,6 +5,7 @@ require "rake"
 require "fileutils"
 require "yaml"
 require "deep_merge"
+require "cloudstack_client"
 
 template_dir = "templates"
 
@@ -107,6 +108,13 @@ inventory["all"]["hosts"].each_key do |name|
 
     desc "create VM template"
     task :template do |_t|
+      %w(
+        CS_KEY_PAIR
+        CS_API_KEY
+        CS_SECRET_KEY
+      ).each do |i|
+        raise "environment variable `#{i}` must be set" unless ENV[i]
+      end
       raise "config section for VM template cannot be found" unless config.key?("template")
       raise "key `upload` is not defined" unless config["template"].key?("upload")
       raise "upload `#{config["template"]["upload"]}` is not supported" unless config["template"]["upload"] == "s3"
@@ -116,9 +124,9 @@ inventory["all"]["hosts"].each_key do |name|
 
       raise "`zoneid` is not defined under template key in config.yml" unless config["template"].key?("zoneid")
       zoneid = config["template"]["zoneid"]
+      raise "`cloudstack_api_url` is not defined under key `template` in config.yml" unless config["template"].key?("cloudstack_api_url")
 
       url = ""
-      command = ""
       case config["template"]["upload"]
       when "s3"
         url = format("https://s3-%s.amazonaws.com/%s/%s%s.ova",
@@ -128,31 +136,24 @@ inventory["all"]["hosts"].each_key do |name|
         raise format("unsupported uplaod method: %s", config["template"]["upload"])
       end
 
-      case config["template"]["api_command"]
-      when "cloudstack-api"
-        command = format("cloudstack-api " +
-                  "registerTemplate " +
-                  "--format OVA " +
-                  "--hypervisor VMware " +
-                  "--sshkeyenabled true " +
-                  "--isextractable true " +
-                  "--passwordenabled true " +
-                  "--name '%s' " +
-                  "--displaytext '%s' " +
-                  "--ostypeid '%s' " +
-                  "--url '%s' " +
-                  "--zoneid '%s' ",
-                  name,
-                  "#{name + '-' + Time.now.strftime("%Y%m%d-%T")}",
-                  ostypeid,
-                  url,
-                  zoneid
-                  )
-      else
-        raise format("unsupported `api_command`: %s", config["template"]["api_command"])
-      end
+      cs = CloudstackClient::Client.new(
+        config["template"]["cloudstack_api_url"],
+        ENV["CS_API_KEY"],
+        ENV["CS_SECRET_KEY"]
+      )
       puts "creating a template for #{name}"
-      sh command
+      cs.register_template(
+        format: "OVA",
+        hypervisor: "VMware",
+        sshkeyenabled: true,
+        isextractable: true,
+        passwordenabled: true,
+        name: name,
+        displaytext: "#{name + '-' + Time.now.strftime("%Y%m%d-%T")}",
+        ostypeid: ostypeid,
+        url: url,
+        zoneid: zoneid
+      )
     end
 
     desc "build #{name} and clean `#{output_dir}`"

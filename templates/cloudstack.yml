@@ -22,3 +22,4 @@
       PasswordAuthentication: "no"
       UseDNS: "no"
       UsePAM: "no"
+      Subsystem: "sftp {{ sshd_sftp_server }}"
