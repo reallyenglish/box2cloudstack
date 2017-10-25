@@ -17,6 +17,10 @@ Vagrant.configure("2") do |config|
   boxes.keys.sort.each do |name|
     config.vm.define name do |c|
       box = boxes[name]
+      unless box.key?("box_version")
+        raise "box `#{name}` does not have `box_version`"
+      end
+      c.vm.box_version = box["box_version"]
       c.vm.box = "#{box_username}/#{name}"
       c.vm.network "private_network", ip: box["ansible_ssh_host"]
       c.vm.provision :ansible do |ansible|

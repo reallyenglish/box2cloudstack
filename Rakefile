@@ -139,6 +139,11 @@ inventory["all"]["hosts"].each_key do |name|
       end
       ostypeid = inventory["all"]["hosts"][name]["ostypeid"]
 
+      unless inventory["all"]["hosts"][name].key?("box_version")
+        raise "`box_version` is not defined in inventory file"
+      end
+      box_version = inventory["all"]["hosts"][name]["box_version"]
+
       unless config["template"].key?("zoneid")
         raise format("`zoneid` is not defined under `template` in %s",
                      config_yml)
@@ -177,7 +182,7 @@ inventory["all"]["hosts"].each_key do |name|
         isextractable: true,
         passwordenabled: true,
         name: name,
-        displaytext: (name + "-" + Time.now.strftime("%Y%m%d-%T")).to_s,
+        displaytext: (name + "-" + box_version),
         ostypeid: ostypeid,
         url: url,
         zoneid: zoneid
