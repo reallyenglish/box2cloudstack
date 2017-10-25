@@ -2,38 +2,32 @@
 all:
   hosts:
     ansible-freebsd-10.3-amd64:
-      ansible_ssh_host: 192.168.212.100
+      ansible_ssh_host: 192.168.212.10
       ansible_extra_vars:
         ansible_python_interpreter: /usr/local/bin/python
       # see cloudstack-api listOsTypes
       ostypeid: 7bddafbf-5803-11e6-92f2-005056812ba5
       box_version: 1.0.0
     ansible-freebsd-11.1-amd64:
-      ansible_ssh_host: 192.168.212.100
+      ansible_ssh_host: 192.168.212.11
       ansible_extra_vars:
         ansible_python_interpreter: /usr/local/bin/python
       ostypeid: 7bddafbf-5803-11e6-92f2-005056812ba5
       box_version: 1.0.0
     ansible-openbsd-6.0-amd64:
-      ansible_ssh_host: 192.168.212.100
+      ansible_ssh_host: 192.168.212.12
       ansible_extra_vars:
         ansible_python_interpreter: /usr/local/bin/python
       ostypeid: c213145e-4ada-11e4-bd06-005056812ba5
       box_version: 1.2.0
     ansible-openbsd-6.1-amd64:
-      ansible_ssh_host: 192.168.212.100
+      ansible_ssh_host: 192.168.212.13
       ansible_extra_vars:
         ansible_python_interpreter: /usr/local/bin/python
       box_version: 1.5.0
       ostypeid: c213145e-4ada-11e4-bd06-005056812ba5
     ansible-openbsd-6.2-amd64:
-      ansible_ssh_host: 192.168.212.100
-      ansible_extra_vars:
-        ansible_python_interpreter: /usr/local/bin/python
-      ostypeid: c213145e-4ada-11e4-bd06-005056812ba5
-      box_version: 1.0.0
-    ansible-openbsd-6.2-amd64:
-      ansible_ssh_host: 192.168.212.100
+      ansible_ssh_host: 192.168.212.14
       ansible_extra_vars:
         ansible_python_interpreter: /usr/local/bin/python
       ostypeid: c213145e-4ada-11e4-bd06-005056812ba5

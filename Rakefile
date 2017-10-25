@@ -6,6 +6,7 @@ require "fileutils"
 require "yaml"
 require "deep_merge"
 require "cloudstack_client"
+require "time"
 
 template_dir = "templates"
 
@@ -34,6 +35,10 @@ def all_targets_of(target, inventory)
 end
 
 inventory["all"]["hosts"].each_key do |name|
+  unless inventory["all"]["hosts"][name].key?("box_version")
+    raise "`box_version` for `#{name}` box is not defined in inventory file"
+  end
+  box_version = inventory["all"]["hosts"][name]["box_version"]
   namespace name do
     output_dir = "output-#{name}"
     desc "initialize build directory"
@@ -57,8 +62,8 @@ inventory["all"]["hosts"].each_key do |name|
     desc "Create OVA file"
     task :ova do |_t|
       rake path: output_dir, args: "#{name}:ova"
-      puts "Copying `#{output_dir}/ova/#{name}.ova` to `#{name}.ova`"
-      FileUtils.cp "#{output_dir}/ova/#{name}.ova", "#{name}.ova"
+      puts "Copying `#{output_dir}/ova/#{name}.ova` to `#{name}-#{box_version}.ova`"
+      FileUtils.cp "#{output_dir}/ova/#{name}.ova", "#{name}-#{box_version}.ova"
     end
 
     desc "clean #{output_dir}"
@@ -72,7 +77,7 @@ inventory["all"]["hosts"].each_key do |name|
       desc "uplaod to AWS S3"
       task :s3 do |_t|
         require "aws-sdk-s3"
-        file = "#{name}.ova"
+        file = "#{name}-#{box_version}.ova"
         %w[
           AWS_ACCESS_KEY_ID
           AWS_SECRET_ACCESS_KEY
@@ -103,7 +108,7 @@ inventory["all"]["hosts"].each_key do |name|
         puts "acl: #{acl}"
         r = client.put_object(
           acl: acl,
-          body: File.read("#{name}.ova"),
+          body: File.read(file),
           bucket: bucket,
           key: key
         )
@@ -139,11 +144,6 @@ inventory["all"]["hosts"].each_key do |name|
       end
       ostypeid = inventory["all"]["hosts"][name]["ostypeid"]
 
-      unless inventory["all"]["hosts"][name].key?("box_version")
-        raise "`box_version` is not defined in inventory file"
-      end
-      box_version = inventory["all"]["hosts"][name]["box_version"]
-
       unless config["template"].key?("zoneid")
         raise format("`zoneid` is not defined under `template` in %s",
                      config_yml)
@@ -159,11 +159,12 @@ inventory["all"]["hosts"].each_key do |name|
       url = ""
       case config["template"]["upload"]
       when "s3"
-        url = format("https://s3-%s.amazonaws.com/%s/%s%s.ova",
+        url = format("https://s3-%s.amazonaws.com/%s/%s%s-%s.ova",
                      config["upload"]["s3"]["region"],
                      config["upload"]["s3"]["bucket"],
                      config["upload"]["s3"]["key_prefix"],
-                     name)
+                     name,
+                     box_version)
       else
         raise format("unsupported uplaod method: %s",
                      config["template"]["upload"])
@@ -181,8 +182,8 @@ inventory["all"]["hosts"].each_key do |name|
         sshkeyenabled: true,
         isextractable: true,
         passwordenabled: true,
-        name: name,
-        displaytext: (name + "-" + box_version),
+        name: format("%s-%s", name, box_version),
+        displaytext: format("%s-%s %s", name, box_version, Time.now.iso8601),
         ostypeid: ostypeid,
         url: url,
         zoneid: zoneid
