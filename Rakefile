@@ -62,8 +62,10 @@ inventory["all"]["hosts"].each_key do |name|
     desc "Create OVA file"
     task :ova do |_t|
       rake path: output_dir, args: "#{name}:ova"
-      puts "Copying `#{output_dir}/ova/#{name}.ova` to `#{name}-#{box_version}.ova`"
-      FileUtils.cp "#{output_dir}/ova/#{name}.ova", "#{name}-#{box_version}.ova"
+      src = "#{output_dir}/ova/#{name}.ova"
+      dst = "#{name}-#{box_version}.ova"
+      puts "Copying #{src} to #{dst}"
+      FileUtils.cp src, dst
     end
 
     desc "clean #{output_dir}"
