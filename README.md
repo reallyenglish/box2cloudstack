@@ -9,11 +9,14 @@ Table of Contents
       * [template top level key](#template-top-level-key)
       * [upload top level key](#upload-top-level-key)
         * [s3](#s3)
+    * [templates/inventories/default.yml](#templatesinventoriesdefaultyml)
     * [Targets](#targets)
       * [build](#build)
       * [upload:s3](#uploads3)
       * [clean](#clean)
+      * [clean:s3](#cleans3)
     * [Creating a VM from templates](#creating-a-vm-from-templates)
+    * [Attaching additional disk](#attaching-additional-disk)
 
 # `box2cloudstack`
 
@@ -149,11 +152,28 @@ upload:
     acl: authenticated-read
 ```
 
+## `templates/inventories/default.yml`
+
+This inventory file in YAML defines `OVA` files.
+
+All box names must be defined under `all: { hosts }`. The key must be box name.
+Under the box name, following keys are supported.
+
+| Key | Description |
+|-----|-------------|
+| `ansible_ssh_host` | RFC 1918 address of the VM |
+| `ansible_extra_vars` | optional hash to pass to `ansible` |
+| `ostypeid` | value listed in `listOsTypes` API response |
+| `box_version` | version of the box |
+
+See [`templates/inventories/default.yml`](templates/inventories/default.yml).
+
 ## Targets
 
 ### build
 
-This target builds all OVA files defined in `templates/inventories/default.yml`.
+This target builds all OVA files defined in
+`templates/inventories/default.yml`.
 
 ### upload:s3
 
@@ -163,13 +183,19 @@ This uploads all OVA files to AWS S3.
 
 Clean everything, including OVA files.
 
+### clean:s3
+
+Removes OVA files on S3. Run this target when all templates has been created
+successfully.
+
 ## Creating a VM from templates
 
 See [examples/Vagrantfile](examples/Vagrantfile).
 
 You need to:
 
-* have SSH key registered (choose key name to match path to `~/.ssh/$CS_KEY_PAIR`)
+* have SSH key registered (choose key name to match path to
+  `~/.ssh/$CS_KEY_PAIR`)
 * obtain API key and secret
 * export SSH key name, API key, API secret into environment variables
 

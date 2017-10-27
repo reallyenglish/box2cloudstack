@@ -53,10 +53,10 @@ Vagrant.configure(2) do |config|
     cloudstack.network_name = "CHANGEME"
 
     # cloudstack-api listZones
-    cloudstack.zone_name = "tesla"
+    cloudstack.zone_name = "CHANGEME"
 
     # the template name
-    cloudstack.template_name = "ansible-openbsd-6.0-amd64"
+    cloudstack.template_name = "ansible-openbsd-6.0-amd64-1.2.0"
   end
   config.vm.define "box2cloudstack-test" do |c|
     c.vm.provider :cloudstack do |cloudstack, _override|

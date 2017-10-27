@@ -224,3 +224,67 @@ task :clean do |_t|
     FileUtils.rm_rf Dir.glob("*.ova"), secure: true
   end
 end
+
+namespace :clean do
+  desc "Remove all OVA files on S3"
+
+  # XXX sanity check is not DRY
+  task :s3 do
+    require "aws-sdk-s3"
+
+    objects = []
+    s3_config = {
+      "key_prefix" => ""
+    }.merge(config["upload"]["s3"])
+    %w[bucket region].each do |i|
+      unless s3_config.key?(i)
+        raise "config for S3 does not have a required key: `#{i}`"
+      end
+    end
+    inventory["all"]["hosts"].each_key do |name|
+      unless inventory["all"]["hosts"][name].key?("box_version")
+        raise "`box_version` for `#{name}` box is not defined in inventory file"
+      end
+      box_version = inventory["all"]["hosts"][name]["box_version"]
+      file = "#{name}-#{box_version}.ova"
+      %w[
+        AWS_ACCESS_KEY_ID
+        AWS_SECRET_ACCESS_KEY
+      ].each do |i|
+        raise "environment variable `#{i}` must be set" unless ENV[i]
+      end
+      unless config.key?("upload") && config["upload"].key?("s3")
+        raise "config section for S3 cannot be found"
+      end
+
+      key = "#{s3_config['key_prefix']}#{file}"
+      objects << { key: key }
+    end
+
+    bucket = s3_config["bucket"]
+    puts "Following objects will be removed from bucket `#{bucket}`:"
+    objects.each do |o|
+      puts o[:key]
+    end
+    client = Aws::S3::Client.new(region: s3_config["region"])
+    r = client.delete_objects({
+      bucket: bucket,
+      delete: {
+        objects: objects,
+        quiet: false
+      }
+    })
+    puts "Deleted objects:"
+    r.deleted.each do |o|
+      puts "key: #{o.key}"
+    end
+    r = client.list_objects({
+      bucket: bucket,
+      prefix: s3_config["key_prefix"]
+    })
+    puts "Remaining objects with prefix `#{s3_config["key_prefix"]}` in bucket `#{bucket}`:"
+    r.contents.each do |o|
+      puts o.key
+    end
+  end
+end
